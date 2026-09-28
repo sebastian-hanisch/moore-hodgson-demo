@@ -1,6 +1,6 @@
 # Moore-Hodgson – möglichst wenige Aufträge verspäten – Streamlit-Demo
 
-**[→ Demo live ausprobieren](#) (Deploy offen)**
+**[→ Demo live ausprobieren](https://sebastianhanisch-moore-hodgson-demo.streamlit.app/)**
 
 Drittes Stück der **Klassische-Scheduling-Theorie-Linie** der "Konzepte"-Reihe für die Website "Sebastian Hanisch
 – Operations Research und Machine Learning": $n$ Aufträge mit Bearbeitungszeit $p_j$ und Fälligkeit $d_j$ auf
