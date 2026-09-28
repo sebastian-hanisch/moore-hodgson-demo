@@ -10,14 +10,9 @@ bisher eingeplanten streichen - nicht zwingend den, der die Verspätung ausgelö
 Lauffähig mit: streamlit run app.py
 """
 
-from dataclasses import replace
-
-import numpy as np
 import streamlit as st
 
-import mh_algorithm as A
 import mh_constants as C
-import mh_scenario_logistik as SL
 from mh_evaluation import Settings, SWEEP_LABELS, analyse, instance, optimality_check, run_config, setup_gap, setup_gap_sweep, sweep, timing_sweep
 from mh_presets import apply_preset, bounds, init_session_state_defaults, load_permalink_settings, randomize_chain_seed, randomize_seed, sync_query_params
 from mh_visualization import build_schedule, build_setup_gap, build_sweep, build_timing
@@ -116,17 +111,12 @@ with st.sidebar:
 sync_query_params({"n_slider": int(n_jobs), "seed_input": int(seed), "chain_seed_input": int(chain_seed), "vehicle_radio": vehicle,
                     "setup_time_slider": int(setup_time), "n_families_slider": int(n_families)})
 
-settings = Settings(int(n_jobs), int(seed), int(chain_seed))
+settings = Settings(int(n_jobs), int(seed), int(chain_seed), vehicle=vehicle, setup_time=int(setup_time), n_families=int(n_families))
 with st.spinner("Rechne..."):
     a = _analysis(settings)
 inst = a.inst
 p, d = inst.p, inst.d
-data_key = (settings, vehicle, setup_time, n_families)
-
-if vehicle == "logistik":
-    linst = SL.generate(int(n_jobs), int(seed), n_families=int(n_families), setup_time=int(setup_time))
-    mh_with_setup = A.evaluate_order_with_setup(linst.p, linst.d, linst.family, linst.setup, a.mh.order)
-    opt_with_setup = A.brute_force_optimal_with_setup(linst.p, linst.d, linst.family, linst.setup) if n_jobs <= C.BRUTE_FORCE_MAX_N else None
+data_key = settings
 
 # --- Moore-Hodgson in Aktion ---------------------------------------------------------------------------------------------------------------------
 
@@ -151,15 +141,16 @@ with view_slot.container():
         st.bar_chart({"Bearbeitungszeit": p.tolist(), "Fälligkeit": d.tolist()})
     elif step == 2:
         st.markdown(f"**Aufteilung nach {upto} von {n_jobs} Aufträgen** (rot = verspätet, blau = pünktlich)")
-        st.plotly_chart(build_schedule(p, a.mh.order, a.mh.late, upto=upto), width="stretch", key=f"s2_sched_{upto}")
+        st.plotly_chart(build_schedule(p, a.mh.order, a.mh.completion, a.mh.late, upto=upto), width="stretch", key=f"s2_sched_{upto}")
     else:
         st.markdown("**Vollständige Aufteilung: pünktlich (blau) gefolgt von verspätet (rot)**")
-        st.plotly_chart(build_schedule(p, a.mh.order, a.mh.late), width="stretch", key="s3_sched")
+        st.plotly_chart(build_schedule(p, a.mh.order, a.mh.completion, a.mh.late), width="stretch", key="s3_sched")
 
 if step == 1:
     st.caption(f"Bearbeitungszeiten zwischen {int(p.min())} und {int(p.max())}, Fälligkeiten zwischen {int(d.min())} und {int(d.max())} Minuten (Seed {seed}).")
 elif step == 2:
-    st.caption("Rot markierte Aufträge sind bereits endgültig als verspätet erkannt - nicht zwingend der zuletzt hinzugefügte, sondern der mit der größten Bearbeitungszeit.")
+    gap_note = " Lücken zwischen Balken sind Rüstzeit bei einem Familienwechsel; sie können einen Auftrag zusätzlich verspäten." if vehicle == "logistik" else ""
+    st.caption(f"Rot markierte Aufträge sind bereits endgültig als verspätet erkannt - nicht zwingend der zuletzt hinzugefügte, sondern der mit der größten Bearbeitungszeit.{gap_note}")
 else:
     st.caption(f"Moore-Hodgson: {a.mh.num_late} von {n_jobs} Aufträgen verspätet. EDD (falsche Regel hier): {a.edd.num_late} verspätet.")
 
@@ -168,36 +159,27 @@ st.markdown("---")
 # --- Ergebnis -------------------------------------------------------------------------------------------------------------------------
 
 st.markdown("## 🎯 Was die Streichregel bringt")
-st.caption("**Abstand:** wie viele Aufträge MEHR bei dieser Reihenfolge verspätet sind, verglichen mit Moore-Hodgson. Moore-Hodgson selbst ist deterministisch - nur die Zufalls-Vergleichsreihenfolge streut.")
+vehicle_note = " Auf dem Werkstatt/Logistik-Vehikel zählt die Rüstzeit beim Familienwechsel mit - Moore-Hodgson kennt sie nicht, alle Zahlen hier berücksichtigen sie trotzdem." if vehicle == "logistik" else ""
+st.caption(f"**Abstand:** wie viele Aufträge MEHR bei dieser Reihenfolge verspätet sind, verglichen mit Moore-Hodgson. Moore-Hodgson selbst ist deterministisch - nur die Zufalls-Vergleichsreihenfolge streut.{vehicle_note}")
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Moore-Hodgson (verspätet)", f"{a.mh.num_late} von {n_jobs}", help="Die Zielgröße: Anzahl verspäteter Aufträge in Moore-Hodgson-Aufteilung.")
+m1.metric("Moore-Hodgson (verspätet)", f"{a.mh.num_late} von {n_jobs}", help="Die Zielgröße: Anzahl verspäteter Aufträge in Moore-Hodgson-Aufteilung, auf dem gewählten Vehikel.")
 m2.metric("EDD (falsche Regel hier)", f"+{_fmt_int(a.gap_edd)}", delta_color="off", help="EDD optimiert Lmax, nicht ΣUⱼ - hier zum Vergleich.")
 m3.metric(f"Zufällige Reihenfolge (Mittel über {a.random_runs})", f"+{a.gap_random:.1f}", delta_color="off")
 if a.optimal is not None:
     m4.metric("Vollaufzählung (Gegenprobe)", "trifft Moore-Hodgson exakt" if a.mh_matches_optimum else "WEICHT AB", delta_color="off",
-              help=f"Alle {n_jobs}! Reihenfolgen durchprobiert - unabhängige Bestätigung.")
+              help=f"Alle {n_jobs}! Reihenfolgen durchprobiert (auf dem gewählten Vehikel) - unabhängige Bestätigung bzw. Gegenprobe.")
 else:
     m4.metric("Vollaufzählung", f"erst ab n ≤ {C.BRUTE_FORCE_MAX_N}", delta_color="off")
 
 if a.optimal is not None and not a.mh_matches_optimum:
-    st.error("⚠️ Moore-Hodgson weicht von der Vollaufzählung ab - das wäre ein Fehler im Beweis oder in der Implementierung, bitte melden.")
-else:
-    st.success(f"✅ Moore-Hodgson hält {_fmt_int(a.gap_edd)} Aufträge mehr pünktlich als EDD und {a.gap_random:.1f} mehr als eine zufällige Reihenfolge im Mittel - bei dieser Zielfunktion beweisbar die beste überhaupt.")
-
-if vehicle == "logistik":
-    st.markdown("**Auf dem Werkstatt/Logistik-Vehikel** (Rüstzeit je Familienwechsel berücksichtigt):")
-    lm1, lm2 = st.columns(2)
-    lm1.metric("Moore-Hodgson, Rüstzeiten mitgerechnet", f"{mh_with_setup.num_late} verspätet", help="Dieselbe Aufteilung wie oben, aber die Fertigstellungszeiten berücksichtigen jetzt die Rüstzeit beim Familienwechsel.")
-    if opt_with_setup is not None:
-        diff = mh_with_setup.num_late - opt_with_setup.num_late
-        lm2.metric("Echtes Optimum MIT Rüstzeiten", f"{opt_with_setup.num_late} verspätet", delta=f"Moore-Hodgson: {diff:+d}", delta_color="off",
-                   help="Vollaufzählung, die die Rüstzeiten selbst mit optimiert - nur für kleine n möglich.")
-        if diff > 0:
-            st.warning(f"⚠️ Moore-Hodgson ist hier NICHT mehr optimal: {diff} zusätzlich verspätete Aufträge gegenüber dem echten Optimum.")
-        else:
-            st.info("ℹ️ Bei dieser Instanz liegt Moore-Hodgson trotz Rüstzeiten am Optimum - das ist nicht garantiert, siehe die Messreihe unten.")
+    if vehicle == "neutral":
+        st.error("⚠️ Moore-Hodgson weicht von der Vollaufzählung ab - das wäre ein Fehler im Beweis oder in der Implementierung, bitte melden.")
     else:
-        lm2.metric("Echtes Optimum MIT Rüstzeiten", f"erst ab n ≤ {C.BRUTE_FORCE_MAX_N}", delta_color="off")
+        diff = a.mh.num_late - a.optimal.num_late
+        st.warning(f"⚠️ Moore-Hodgson ist hier NICHT mehr optimal: {diff} zusätzlich verspätete Aufträge gegenüber dem echten Optimum MIT Rüstzeiten.")
+else:
+    tail = " (auch mit Rüstzeiten - bei dieser Instanz trifft Moore-Hodgson trotzdem das Optimum, das ist nicht garantiert)" if vehicle == "logistik" and a.optimal is not None else ""
+    st.success(f"✅ Moore-Hodgson hält {_fmt_int(a.gap_edd)} Aufträge mehr pünktlich als EDD und {a.gap_random:.1f} mehr als eine zufällige Reihenfolge im Mittel - bei dieser Zielfunktion beweisbar die beste überhaupt{tail}.")
 
 st.markdown("---")
 

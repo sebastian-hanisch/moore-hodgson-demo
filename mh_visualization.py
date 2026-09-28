@@ -22,10 +22,12 @@ def _base(fig, height):
     return lock_axes(fig)
 
 
-def build_schedule(p, order, late_mask, upto=None):
+def build_schedule(p, order, completion, late_mask, upto=None):
+    """`completion`: die TATSÄCHLICHEN Fertigstellungszeiten (aus `evaluate_order`/`evaluate_order_with_setup`) -
+    auf dem Werkstatt/Logistik-Vehikel enthalten sie Lücken durch Rüstzeiten, sichtbar als Leerraum."""
     order = np.asarray(order)
     upto = len(order) if upto is None else upto
-    starts = np.concatenate([[0], np.cumsum(p[order])[:-1]])
+    starts = np.asarray(completion) - p[order]
     fig = go.Figure()
     shown_on_time = shown_late = False
     for i in range(upto):

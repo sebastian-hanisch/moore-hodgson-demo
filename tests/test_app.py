@@ -37,6 +37,16 @@ def test_default_run_has_no_exception_and_shows_the_measured_default():
     assert any("beweisbar die beste überhaupt" in s.value for s in at.success)
 
 
+def test_switching_to_the_logistik_vehicle_actually_changes_the_main_metric():
+    """Regressionsschutz: der Vehikel-Umschalter muss die HAUPT-Kennzahl ändern, nicht nur eine separate Box
+    weiter unten - genau die Lücke, die der Nutzer an der App gefunden hat."""
+    at_neutral = _run(n_slider=10, seed_input=7, vehicle_radio="neutral")
+    at_logistik = _run(n_slider=10, seed_input=7, vehicle_radio="logistik", setup_time_slider=60, n_families_slider=2)
+    _ok(at_neutral)
+    _ok(at_logistik)
+    assert _metric(at_neutral, "Moore-Hodgson (verspätet)") != _metric(at_logistik, "Moore-Hodgson (verspätet)")
+
+
 @pytest.mark.parametrize("name", list(C.PRESETS))
 def test_every_preset_button_runs(name):
     at = _run()

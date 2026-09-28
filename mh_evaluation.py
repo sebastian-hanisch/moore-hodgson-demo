@@ -21,11 +21,19 @@ class Settings:
     chain_seed: int = 0
     tf: float = C.DEFAULT_TF
     rdd: float = C.DEFAULT_RDD
+    vehicle: str = C.DEFAULT_VEHICLE
+    setup_time: int = C.DEFAULT_SETUP_TIME
+    n_families: int = C.DEFAULT_N_FAMILIES
 
 
 @lru_cache(maxsize=512)
 def instance(n, seed, tf=C.DEFAULT_TF, rdd=C.DEFAULT_RDD):
     return S.generate(n, seed, tf=tf, rdd=rdd)
+
+
+@lru_cache(maxsize=512)
+def logistik_instance(n, seed, n_families, setup_time, tf=C.DEFAULT_TF, rdd=C.DEFAULT_RDD):
+    return SL.generate(n, seed, n_families=n_families, setup_time=setup_time, tf=tf, rdd=rdd)
 
 
 @dataclass
@@ -57,13 +65,33 @@ class Analysis:
 
 
 def analyse(settings, random_draws=20):
+    """Wertet Moore-Hodgson auf dem gewählten Vehikel aus - Neutral oder Werkstatt/Logistik (Rüstzeit beim
+    Familienwechsel zählt mit). Die Streichregel selbst bleibt in beiden Fällen dieselbe (kennt keine
+    Rüstzeiten) - nur die BEWERTUNG der resultierenden Reihenfolge (welche Aufträge dadurch tatsächlich
+    verspätet sind, und damit auch die Vollaufzählung) wechselt mit dem Vehikel, damit die Haupt-Kennzahlen
+    ehrlich widerspiegeln, was auf dem gewählten Vehikel passiert (statt nur in einer Zusatzbox)."""
     inst = instance(settings.n, settings.seed, settings.tf, settings.rdd)
-    mh = A.moore_hodgson(inst.p, inst.d)
-    edd = A.edd_order_result(inst.p, inst.d)
-    spt = A.spt_order_result(inst.p, inst.d)
+    p, d = inst.p, inst.d
+
+    if settings.vehicle == "logistik":
+        linst = logistik_instance(settings.n, settings.seed, settings.n_families, settings.setup_time, settings.tf, settings.rdd)
+        family, setup = linst.family, linst.setup
+
+        def ev(order):
+            return A.evaluate_order_with_setup(p, d, family, setup, order)
+
+        optimal = A.brute_force_optimal_with_setup(p, d, family, setup) if settings.n <= C.BRUTE_FORCE_MAX_N else None
+    else:
+        def ev(order):
+            return A.evaluate_order(p, d, order)
+
+        optimal = A.brute_force_optimal(p, d) if settings.n <= C.BRUTE_FORCE_MAX_N else None
+
+    mh = ev(A.moore_hodgson(p, d).order)
+    edd = ev(A.edd_order_result(p, d).order)
+    spt = ev(A.spt_order_result(p, d).order)
     rng = np.random.default_rng(settings.chain_seed)
-    random_counts = [A.random_order_result(inst.p, inst.d, settings.n, rng).num_late for _ in range(random_draws)]
-    optimal = A.brute_force_optimal(inst.p, inst.d) if settings.n <= C.BRUTE_FORCE_MAX_N else None
+    random_counts = [ev(A.random_order_result(p, d, settings.n, rng).order).num_late for _ in range(random_draws)]
     return Analysis(settings, inst, mh, edd, spt, float(np.mean(random_counts)), random_draws, optimal)
 
 

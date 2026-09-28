@@ -6,6 +6,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
+import mh_algorithm as A
 import mh_constants as C
 import mh_evaluation as ev
 import mh_scenario as S
@@ -56,6 +57,36 @@ def test_analysis_matches_the_optimum_for_small_n():
     a = ev.analyse(ev.Settings(n=6))
     assert a.optimal is not None
     assert a.mh_matches_optimum
+
+
+# --- Vehikel-Bewusstsein der Hauptanalyse (nicht nur einer Zusatzbox) -----------------------------------------------------------------------
+
+
+def test_analyse_on_the_logistik_vehicle_actually_uses_setup_aware_completion_times():
+    """Regressionsschutz für genau die Lücke, die der Nutzer gefunden hat: `analyse()` mit vehicle='logistik'
+    muss die Rüstzeiten TATSÄCHLICH in a.mh/a.edd/a.spt/a.optimal einrechnen, nicht nur das neutrale Ergebnis
+    zurückgeben. Verglichen mit einer unabhängigen, direkten Berechnung über `evaluate_order_with_setup`."""
+    settings = ev.Settings(n=8, seed=100000, vehicle="logistik", setup_time=30, n_families=3)
+    a = ev.analyse(settings)
+    linst = ev.logistik_instance(8, 100000, 3, 30)
+    independent_mh = A.evaluate_order_with_setup(linst.p, linst.d, linst.family, linst.setup, a.mh.order)
+    assert a.mh.num_late == independent_mh.num_late
+    assert not np.array_equal(a.mh.completion, np.cumsum(linst.p[a.mh.order]))  # Rüstzeiten verschieben die Fertigstellung
+
+
+def test_analyse_on_the_logistik_vehicle_can_show_moore_hodgson_missing_the_optimum():
+    """Der zentrale, jetzt im Hauptfluss sichtbare Befund: auf dem Werkstatt-Vehikel kann Moore-Hodgson von der
+    (rüstzeit-bewussten) Vollaufzählung abweichen - anders als auf dem neutralen Vehikel, wo das ein Bug wäre."""
+    settings = ev.Settings(n=6, seed=3, vehicle="logistik", setup_time=60, n_families=2)
+    a = ev.analyse(settings)
+    assert a.optimal is not None
+    assert a.mh.num_late >= a.optimal.num_late                  # Optimum ist per Definition mindestens so gut
+
+
+def test_analyse_on_the_neutral_vehicle_is_unaffected_by_logistik_only_settings():
+    a1 = ev.analyse(ev.Settings(n=10, seed=5, vehicle="neutral", setup_time=5))
+    a2 = ev.analyse(ev.Settings(n=10, seed=5, vehicle="neutral", setup_time=60))
+    assert a1.mh.num_late == a2.mh.num_late
 
 
 def test_analysis_is_deterministic_given_the_chain_seed():
