@@ -14,7 +14,7 @@ import streamlit as st
 
 import mh_constants as C
 from mh_evaluation import Settings, SWEEP_LABELS, analyse, instance, optimality_check, run_config, setup_gap, setup_gap_sweep, sweep, timing_sweep
-from mh_presets import apply_preset, bounds, init_session_state_defaults, load_permalink_settings, randomize_chain_seed, randomize_seed, sync_query_params
+from mh_presets import KEPT, apply_preset, bounds, init_session_state_defaults, load_permalink_settings, randomize_chain_seed, randomize_seed, seed_widget, sync_query_params
 from mh_visualization import build_schedule, build_setup_gap, build_sweep, build_timing
 
 st.set_page_config(page_title="Moore-Hodgson – Sebastian Hanisch", layout="wide")
@@ -97,11 +97,16 @@ with st.sidebar:
     vehicle = st.radio("Vehikel", list(C.VEHICLE_LABELS), key="vehicle_radio", format_func=lambda k: C.VEHICLE_LABELS[k],
                         help="Neutral: keine Rüstzeiten. Werkstatt/Logistik: dieselben Aufträge, in Familien mit Rüstzeit beim Wechsel.")
     if vehicle == "logistik":
+        seed_widget("setup_time_slider")
         setup_time = st.slider("Rüstzeit je Familienwechsel (Minuten)", *bounds("setup_time_slider"), key="setup_time_slider",
                                 help="0 Minuten kollabiert exakt zum neutralen Vehikel (siehe Test/Messreihe).")
+        st.session_state[KEPT["setup_time_slider"]] = setup_time
+        seed_widget("n_families_slider")
         n_families = st.slider("Auftragsfamilien", *bounds("n_families_slider"), key="n_families_slider")
+        st.session_state[KEPT["n_families_slider"]] = n_families
     else:
-        setup_time, n_families = C.DEFAULT_SETUP_TIME, C.DEFAULT_N_FAMILIES
+        setup_time = int(st.session_state.get(KEPT["setup_time_slider"], C.DEFAULT_SETUP_TIME))
+        n_families = int(st.session_state.get(KEPT["n_families_slider"], C.DEFAULT_N_FAMILIES))
     seed = st.number_input("Zufalls-Seed der Instanz", *bounds("seed_input"), key="seed_input", step=1)
     st.button("🎲 Neue Instanz generieren", width="stretch", on_click=randomize_seed)
     chain_seed = st.number_input("Zufalls-Seed der Kette", *bounds("chain_seed_input"), key="chain_seed_input", step=1,
