@@ -33,7 +33,7 @@ bis zu **2,2 zusätzlich verspätete Aufträge** im Mittel bei 60 Minuten je Fam
 |---|---|
 | Standardfall (20 Aufträge) | ✅ Moore-Hodgson hält **5,2** mehr Aufträge pünktlich als EDD, **2,2** mehr als SPT, **6,5** mehr als Zufall |
 | **Beweis gegen Vollaufzählung** | ✅ **100 %** Trefferquote bei n = 2 bis 9 |
-| **Rechenzeit** | ➖ Vollaufzählung bei n = 9 bereits über 3000 ms, Moore-Hodgson bei rund 0,01 ms |
+| **Rechenzeit** | ➖ Vollaufzählung bei n = 9 bereits über 2000 ms, Moore-Hodgson bei rund 0,01 ms |
 | **Vehikel Werkstatt/Logistik** | ❌ Rüstzeit 0/5/15/30/60 Minuten: **0/0,4/1,0/2,2/2,2** zusätzlich verspätete Aufträge – ab Rüstzeit > 0 NICHT mehr beweisbar optimal |
 
 ## Was die Demo zeigt
@@ -125,6 +125,4 @@ pytest tests/ -v
 
 ---
 
-Teil des [Operations-Research-Demo-Portfolios](https://sebastianhanisch.net/demos.html) von
-[Sebastian Hanisch](https://sebastianhanisch.net) – Operations Research und Machine Learning.
-Interesse an einer maßgeschneiderten Lösung? [Kontakt aufnehmen](https://sebastianhanisch.net/kontakt.html).
+Diese Demo ist Teil des Portfolios von [Sebastian Hanisch](https://sebastianhanisch.net) – Operations Research und Machine Learning ([Über mich](https://sebastianhanisch.net/ueber-mich.html)). Mehr zur Reihe: [Scheduling-Theorie: SPT bis RCPSP](https://sebastianhanisch.net/konzepte-klassische-scheduling-theorie.html).

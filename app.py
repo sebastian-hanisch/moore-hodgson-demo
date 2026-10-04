@@ -268,11 +268,11 @@ minimiert.
    Aufträge verschoben) und $t$ entsprechend verringert.
 3. Am Ende sind die eingeplanten Aufträge alle pünktlich (in EDD-Reihenfolge), alle übrigen verspätet.
 
-**Warum das optimal ist (Skizze).** Für eine feste Menge pünktlicher Aufträge ist EDD die einzige Reihenfolge,
-die alle pünktlich hält, falls das überhaupt möglich ist (Beweis wie bei EDD/Lmax). Die Streichregel maximiert
+**Warum das optimal ist (Skizze).** Für eine feste Menge pünktlicher Aufträge gilt: kann überhaupt eine Reihenfolge
+alle pünktlich halten, dann auch EDD (Beweis wie bei EDD/Lmax). Die Streichregel maximiert
 bei jedem Schritt die verbleibende "Zeitreserve" für die noch nicht eingeplanten Aufträge, indem sie den
 teuersten Platz im pünktlichen Teil freigibt - das lässt sich induktiv zu einem Optimalitätsbeweis ausbauen
-(Moore 1968; ein moderner, kurzer Beweis: Mor & Mosheiov 2021, *A simple proof of the Moore-Hodgson Algorithm*).
+(Moore 1968; ein moderner, kurzer Beweis: Cheriyan, Ravi & Skutella 2021, *A simple proof of the Moore-Hodgson Algorithm*).
 
 **Kennzahl.** Abstand zu Moore-Hodgson $=$ Anzahl verspäteter Aufträge einer Reihenfolge minus
 $\sum U_j(\text{Moore-Hodgson})$. Für $n \le 9$ zusätzlich die Vollaufzählung als unabhängige Gegenprobe.
@@ -290,6 +290,6 @@ Implementiert in `mh_algorithm.py` (Moore-Hodgson, Brute-Force-Gegenprobe, Rüst
 st.markdown("---")
 st.caption(
     "Diese Demo ist Teil des Portfolios von [Sebastian Hanisch](https://sebastianhanisch.net) – "
-    "Operations Research und Machine Learning. Interesse an einer maßgeschneiderten Lösung für "
-    "Ihr Unternehmen? [Kontakt aufnehmen](https://sebastianhanisch.net/kontakt.html)"
+    "Operations Research und Machine Learning ([Über mich](https://sebastianhanisch.net/ueber-mich.html)). "
+    "Mehr zur Reihe: [Scheduling-Theorie: SPT bis RCPSP](https://sebastianhanisch.net/konzepte-klassische-scheduling-theorie.html)."
 )
